@@ -8,7 +8,10 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <!--    位置信息  获取精准位置-->
     <!--    Android 6.0及后续版本，使用蓝牙扫描，还需要添加如下的权限，且该权限还需要在使用时动态申请 -->
+
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 

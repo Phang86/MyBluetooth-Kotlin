@@ -9,9 +9,13 @@ import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.IntentFilter
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -38,6 +42,8 @@ class MainActivity : AppCompatActivity() {
     //请求码
     private val REQUEST_ENABLE_BLUETOOTH = 1
 
+    private val TAG = this::class.java.simpleName
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -63,8 +69,53 @@ class MainActivity : AppCompatActivity() {
     private fun permissionRequest() =
         PermissionX.init(this).permissions(Manifest.permission.ACCESS_FINE_LOCATION)
             .request { allGrand, _, _ ->
-                if (allGrand) initBluetooth() else showMsg("未打开权限")
+                if (allGrand) {
+                    if (isLocServiceEnable()) {
+                        initBluetooth()
+                    }else{
+                        showMsg("请打开手机定位")
+//                        startDeviceGPS()
+                    }
+                }else{
+                    showMsg("未允许访问位置权限")
+                }
             }
+
+    /**
+     * 判断设备是否开启定位
+     */
+    private fun isLocServiceEnable(): Boolean{
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        //是否开启GPS
+        val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+        //是否开启网络
+        //val isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        if (isGpsEnabled) {
+            // 位置服务已开启
+            return true
+        }
+        // 位置服务未开启
+        return false
+    }
+
+    /**
+     * 打开设备GPS
+     */
+    @SuppressLint("MissingPermission")
+    private fun startDeviceGPS() {
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        locationManager.requestLocationUpdates(
+            LocationManager.GPS_PROVIDER,0,0f, object : LocationListener{
+                override fun onLocationChanged(p0: Location) {
+                    TODO("Not yet implemented")
+                }
+
+                override fun onProviderDisabled(provider: String) {
+                    // 在这里处理位置提供者被禁用的情况
+                }
+            })
+    }
+
 
     /**
      * Toast
@@ -72,10 +123,11 @@ class MainActivity : AppCompatActivity() {
     private fun showMsg(msg: CharSequence) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 
     /**
-     *  初始化蓝牙
+     * 初始化蓝牙
      */
     private fun initBluetooth() {
         val intentFilter = IntentFilter()
+        intentFilter.addAction(BluetoothDevice.ACTION_FOUND)
         intentFilter.addAction(BluetoothDevice.ACTION_FOUND)  //获取扫描结果
         intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED) //获取绑定状态
         intentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED) //开始扫描
@@ -100,10 +152,9 @@ class MainActivity : AppCompatActivity() {
                 BluetoothAdapter.ACTION_DISCOVERY_STARTED -> loading_lay.visibility = View.VISIBLE
                 //停止扫描
                 BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> loading_lay.visibility = View.GONE
-                else -> showMsg("Unknown未知")
+                else -> showMsg("Unknown:未知")
             }
         }
-
     }
 
     /**
@@ -198,20 +249,25 @@ class MainActivity : AppCompatActivity() {
      */
     @SuppressLint("MissingPermission")
     fun scanBluetooth(view: View) {
-        if (bluetoothAdapter != null) { //是否支持蓝牙
-            if (bluetoothAdapter!!.isEnabled) { //是否开启蓝牙
-                //开始扫描周围的蓝牙设配，如果扫描到蓝牙设备，通过广播接收器发送广播
-                if (mAdapter != null) {  //当适配器不为空时，说明已经有数据，则清空数据，重新扫描
-                    list.clear()
-                    mAdapter!!.notifyDataSetChanged()
+        if (isLocServiceEnable()) {
+            if (bluetoothAdapter != null) { //是否支持蓝牙
+                if (bluetoothAdapter!!.isEnabled) { //是否开启蓝牙
+                    //开始扫描周围的蓝牙设配，如果扫描到蓝牙设备，通过广播接收器发送广播
+                    if (mAdapter != null) {  //当适配器不为空时，说明已经有数据，则清空数据，重新扫描
+                        list.clear()
+                        mAdapter!!.notifyDataSetChanged()
+                    }
+                    bluetoothAdapter!!.startDiscovery()
+                } else { //未打开蓝牙
+                    val intent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+                    startActivityForResult(intent, REQUEST_ENABLE_BLUETOOTH)
                 }
-                bluetoothAdapter!!.startDiscovery()
-            } else { //未打开蓝牙
-                val intent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-                startActivityForResult(intent, REQUEST_ENABLE_BLUETOOTH)
+            } else {
+                showMsg("当前设备不支持蓝牙")
             }
-        } else {
-            showMsg("当前设备不支持蓝牙")
+        }else{
+            showMsg("请打开手机定位")
+//            startDeviceGPS()
         }
     }
 
